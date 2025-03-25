@@ -191,11 +191,15 @@ const buildQuery: BuildQuery<TableChartFormData> = (
 
     const moreProps: Partial<QueryObject> = {};
     const ownState = options?.ownState ?? {};
-    if (formDataCopy.server_pagination) {
+
+    if (formData?.isFull !== true && formDataCopy.server_pagination) {
       moreProps.row_limit =
         ownState.pageSize ?? formDataCopy.server_page_length;
       moreProps.row_offset =
         (ownState.currentPage ?? 0) * (ownState.pageSize ?? 0);
+    } else{
+      moreProps.row_limit = undefined; // Remove row limit for export
+      moreProps.row_offset = 0; // Reset offset for export
     }
 
     if (!temporalColumn) {
