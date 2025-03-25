@@ -65,6 +65,4 @@ cd "$START_DIR"
 echo ">>> Cleaning up builder cache"
 docker builder prune -f
 
-# Print disk space after cleanup
-echo ">>> Disk space after cleanup:"
-df -h
+echo ">>> Done !!!"
