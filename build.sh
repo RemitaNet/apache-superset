@@ -10,7 +10,7 @@ trap 'cd "$START_DIR"' EXIT
 build_and_push_image() {
     local dockerfile="$1"
     local image_name="$2"
-    local image_tag="registry.remita.net/systemspecs/remita-payment-services/technology/platform-engineering/core-platform/ramie-bi-data/${image_name}:${DATE_WITH_TIME}"
+    local image_tag="registry.remita.net/systemspecs/remita-payment-services/technology/platform-engineering/core-platform/ramie-bi-data/${image_name}:${3}${DATE_WITH_TIME}"
 
     echo ">>> Building image: ${image_tag}"
 
@@ -52,7 +52,7 @@ fi
 # Only proceed to build WebSocket if the first build succeeds
 echo ">>> Building Apache Superset WebSocket image"
 if cd ./superset-websocket; then
-    build_and_push_image "Dockerfile" "apache-superset-websocket"
+    build_and_push_image "Dockerfile" "apache-superset" "websocket-"
 else
     echo ">>> Failed to enter WebSocket directory. Exiting script."
     exit 1
@@ -63,10 +63,7 @@ cd "$START_DIR"
 
 # Cleanup builder cache
 echo ">>> Cleaning up builder cache"
-docker builder prune -f --filter until=24h
-
-# Optional: More aggressive cleanup
-# docker system prune -f --volumes
+docker builder prune -f
 
 # Print disk space after cleanup
 echo ">>> Disk space after cleanup:"
