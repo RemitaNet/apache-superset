@@ -16,14 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  MouseEvent,
-  Key,
-  KeyboardEvent,
-  useState,
-  useRef,
-  RefObject,
-} from 'react';
+import {Key, KeyboardEvent, MouseEvent, RefObject, useEffect, useRef, useState,} from 'react';
 
 import { RouteComponentProps, useHistory } from 'react-router-dom';
 import { extendedDayjs } from 'src/utils/dates';
@@ -155,9 +148,50 @@ const dropdownIconsStyles = css`
   }
 `;
 
+const parseJsonValue = (value: any) => {
+  if (!value) return [];
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return [];
+    }
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value instanceof Set) {
+    return Array.from(value);
+  }
+  return [];
+};
+
+
+
+
 const SliceHeaderControls = (
   props: SliceHeaderControlsPropsWithRouter | SliceHeaderControlsProps,
 ) => {
+
+  function sendWindowPostMessge(messageData: any) {
+    if (window.self !== window.top) {
+      window.parent.postMessage(messageData, '*', [new MessageChannel().port2]);
+      window.postMessage({'notification':'publish-event',"data":messageData}, '*');
+    } else {
+      window.postMessage({'notification':'alert-event',"data":messageData}, '*');
+    }
+  }
+
+
+  function onBulkActionClick(key: any, selectedIds: unknown[]) {
+    sendWindowPostMessge({
+      action: 'bulk-action',
+      actionType: key,
+      chartId: slice.slice_id,
+      value:selectedIds,
+    });
+
+  }
   const [drillModalIsOpen, setDrillModalIsOpen] = useState(false);
   // setting openKeys undefined falls back to uncontrolled behaviour
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -187,6 +221,39 @@ const SliceHeaderControls = (
       props.forceRefresh(props.slice.slice_id, props.dashboardId);
     }
   };
+  const bulkActionLabel=props?.formData?.bulk_action_label;
+  const nonSplitActions = parseJsonValue(props?.formData?.non_split_actions);
+  const splitActions = parseJsonValue(props?.formData?.split_actions);
+  const [selectedRows, setSelectedRows] = useState<Set<any>>(new Set());
+  const [hasSelection, setHasSelection] = useState(false);
+
+  // Load selected rows from localStorage on component mount
+  useEffect(() => {
+    const checkSelection = () => {
+      const savedSelectedRows = localStorage.getItem(`selectedRows_${slice.slice_id}`);
+      const parsed: any[] = savedSelectedRows ? parseJsonValue(savedSelectedRows) : [];
+      const rowsSet = new Set(parsed);
+      setSelectedRows(rowsSet);
+      setHasSelection(rowsSet?.size > 0);
+    };
+
+    // Initial check
+    checkSelection();
+
+    // Listen for storage events to react to changes in other tabs/windows
+    const handleStorageChange = (event: any) => {
+      if (event.key === `selectedRows_${slice.slice_id}`) {
+        checkSelection();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [props.slice.slice_id]);
 
   const handleMenuClick = ({
     key,
@@ -299,7 +366,7 @@ const SliceHeaderControls = (
     supersetCanShare = false,
     isCached = [],
   } = props;
-  const isTable = slice.viz_type === VizType.Table;
+  const isTable = slice.viz_type === VizType.Table || slice.viz_type === VizType.RemitaTable;
   const isPivotTable = slice.viz_type === VizType.PivotTable;
   const cachedWhen = (cachedDttm || []).map(itemCachedDttm =>
     extendedDayjs.utc(itemCachedDttm).fromNow(),
@@ -334,7 +401,18 @@ const SliceHeaderControls = (
     zIndex: isFullSize ? 101 : 99,
     animationDuration: '0s',
   };
-
+  const isActionVisible = (action: any, hasSelection: boolean) => {
+    if (!action?.visibilityCondition || action.visibilityCondition === 'all') {
+      return true;
+    }
+    if (action.visibilityCondition === 'selected') {
+      return hasSelection;
+    }
+    if (action.visibilityCondition === 'unselected') {
+      return !hasSelection;
+    }
+    return true;
+  };
   const menu = (
     <Menu
       onClick={handleMenuClick}
@@ -500,6 +578,44 @@ const SliceHeaderControls = (
             {t('Download as image')}
           </Menu.Item>
         </Menu.SubMenu>
+      )}
+      {/* Add splitActions as a submenu */}
+      {splitActions?.length > 0 && (
+        <Menu.SubMenu key="split-actions" title={bulkActionLabel}>
+          {splitActions
+            .map((action: any) => {
+              const visible = isActionVisible(action, hasSelection);
+              return (
+                <Menu.Item
+                  key={action.key}
+                  disabled={action.boundToSelection && !visible}
+                  onClick={() => onBulkActionClick?.(action.key, Array.from(selectedRows))}
+                >
+                  {action.label}
+                </Menu.Item>
+              );
+            })}
+        </Menu.SubMenu>
+      )}
+
+      {nonSplitActions.length > 0 && (
+        <>
+          <Menu.Divider />
+          {nonSplitActions
+            .filter((action: any) => action?.showInSliceHeader)
+            .map((action: any) => {
+              const visible = isActionVisible(action, hasSelection);
+              return (
+                <Menu.Item
+                  key={action.key}
+                  disabled={action.boundToSelection && !visible}
+                  onClick={() => onBulkActionClick?.(action.key, Array.from(selectedRows))}
+                >
+                  {action.label}
+                </Menu.Item>
+              );
+            })}
+        </>
       )}
     </Menu>
   );
