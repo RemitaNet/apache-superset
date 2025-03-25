@@ -6,13 +6,13 @@
     "superset",
     "remita"
   ],
-  "homepage": "https://github.com/RemitaNet/superset/tree/master/superset-frontend/plugins/plugin-chart-remita-table#readme",
+  "homepage": "https://github.com/RemitaNet/apache-superset/tree/master/superset-frontend/plugins/plugin-chart-remita-table#readme",
   "bugs": {
     "url": "https://github.com/RemitaNet/superset/issues"
   },
   "repository": {
     "type": "git",
-    "url": "  https://github.com/RemitaNet/superset.git",
+    "url": "  https://github.com/RemitaNet/apache-superset.git",
     "directory": "superset-frontend/plugins/plugin-chart-remita-table"
   },
   "license": "Apache-2.0",
