@@ -26,6 +26,7 @@ import sys
 
 from celery.schedules import crontab
 from flask_caching.backends.filesystemcache import FileSystemCache
+from superset.tasks.types import FixedExecutor
 
 logger = logging.getLogger()
 
@@ -98,7 +99,11 @@ class CeleryConfig:
 
 CELERY_CONFIG = CeleryConfig
 
-FEATURE_FLAGS = {"ALERT_REPORTS": True}
+
+FEATURE_FLAGS = {"ALERT_REPORTS": True,
+                 "THUMBNAILS": True,
+                 "THUMBNAILS_SQLA_LISTENERS": True
+                 }
 ALERT_REPORTS_NOTIFICATION_DRY_RUN = True
 WEBDRIVER_BASEURL = "http://superset:8088/"  # When using docker compose baseurl should be http://superset_app:8088/  # noqa: E501
 # The base URL for the email report hyperlinks.
@@ -133,3 +138,13 @@ try:
     )
 except ImportError:
     logger.info("Using default Docker config...")
+
+from superset.tasks.types import ExecutorType, FixedExecutor
+ALERT_REPORTS_EXECUTORS = [
+    ExecutorType.CREATOR_OWNER,
+    ExecutorType.CREATOR,
+    ExecutorType.MODIFIER_OWNER,
+    ExecutorType.MODIFIER,
+    ExecutorType.OWNER,
+    FixedExecutor("admin"),
+]

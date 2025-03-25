@@ -14,17 +14,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 ######################################################################
 # Node stage to deal with static asset construction
 ######################################################################
 ARG PY_VER=3.11.11-slim-bookworm
-
 # If BUILDPLATFORM is null, set it to 'amd64' (or leave as is otherwise).
 ARG BUILDPLATFORM=${BUILDPLATFORM:-amd64}
-
 # Include translations in the final build
 ARG BUILD_TRANSLATIONS="false"
+
+ARG GECKODRIVER_VERSION=v0.32.0
+ARG FIREFOX_VERSION=106.0.3
+
+######################################################################
+# Oracle client layer
+######################################################################
+FROM debian:bookworm-slim AS oracle-client
+WORKDIR /oracle
+RUN DOWNLOAD_URL="https://download.oracle.com/otn_software/linux/instantclient/1921000/instantclient-basiclite-linux.x64-19.21.0.0.0dbru.zip" \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends wget unzip ca-certificates \
+    && wget --quiet --no-check-certificate -O instantclient.zip "${DOWNLOAD_URL}" \
+    && unzip -q instantclient.zip \
+    && rm instantclient.zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ######################################################################
 # superset-node-ci used as a base for building frontend assets and CI
@@ -70,6 +84,7 @@ RUN --mount=type=bind,source=./superset-frontend/package.json,target=./package.j
         echo "Skipping 'npm ci' in dev mode"; \
     fi
 
+
 # Runs the webpack build process
 COPY superset-frontend /app/superset-frontend
 
@@ -89,14 +104,12 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Copy translation files
 COPY superset/translations /app/superset/translations
-
 # Build the frontend if not in dev mode
 RUN if [ "$BUILD_TRANSLATIONS" = "true" ]; then \
         npm run build-translation; \
     fi; \
     rm -rf /app/superset/translations/*/*/*.po; \
     rm -rf /app/superset/translations/*/*/*.mo;
-
 
 ######################################################################
 # Base python layer
@@ -179,6 +192,19 @@ RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
         echo "Skipping browser installation"; \
     fi
 
+# Install browser dependencies
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y wget  firefox-esr
+
+ENV GECKODRIVER_VERSION=0.29.0
+RUN wget -q https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz && \
+    tar -x geckodriver -zf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -O > /usr/bin/geckodriver && \
+    chmod 755 /usr/bin/geckodriver && \
+    rm geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
+
+RUN pip install --no-cache gevent
+# End browser dependencies
+
 # Copy required files for Python build
 COPY pyproject.toml setup.py MANIFEST.in README.md ./
 COPY superset-frontend/package.json superset-frontend/
@@ -189,12 +215,37 @@ COPY --chmod=755 ./docker/entrypoints/run-server.sh /usr/bin/
 
 # Some debian libs
 RUN /app/docker/apt-install.sh \
-      curl \
-      libsasl2-dev \
-      libsasl2-modules-gssapi-mit \
-      libpq-dev \
-      libecpg-dev \
-      libldap2-dev
+    curl \
+    libsasl2-dev \
+    libsasl2-modules-gssapi-mit \
+    libpq-dev \
+    libecpg-dev \
+    libldap2-dev \
+    build-essential \
+    pkg-config \
+    default-libmysqlclient-dev \
+    libmariadb-dev \
+    mariadb-client \
+    mariadb-server \
+    git \
+    wget \
+    unzip \
+    libaio1 \
+    libaio-dev
+
+# Copy Oracle client
+COPY --from=oracle-client /oracle/instantclient* /usr/share/oracle/instantclient
+
+# Set Oracle environment variables
+ENV ORACLE_HOME=/usr/share/oracle/instantclient \
+    LD_LIBRARY_PATH=/usr/share/oracle/instantclient:/usr/lib \
+    PATH="/usr/share/oracle/instantclient:/usr/local/bin:${PATH}" \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+# Ensure Oracle Instant Client dependencies are linked
+RUN echo "/usr/share/oracle/instantclient" > /etc/ld.so.conf.d/oracle.conf \
+    && ldconfig
 
 # Copy compiled things from previous stages
 COPY --from=superset-node /app/superset/static/assets superset/static/assets
@@ -217,6 +268,25 @@ EXPOSE ${SUPERSET_PORT}
 ######################################################################
 FROM python-common AS lean
 
+# Install all required build dependencies first
+RUN /app/docker/apt-install.sh \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    default-mysql-client \
+    default-libmysqlclient-dev \
+    libmariadb-dev \
+    mariadb-client \
+    mariadb-server \
+    libmariadb3 \
+    libmariadb-dev \
+    wget \
+    unzip \
+    libaio1 \
+    libaio-dev
+
 # Install Python dependencies using docker/pip-install.sh
 COPY requirements/base.txt requirements/
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
@@ -232,12 +302,23 @@ USER superset
 # Dev image...
 ######################################################################
 FROM python-common AS dev
-
 # Debian libs needed for dev
 RUN /app/docker/apt-install.sh \
+    build-essential \
+    gcc \
+    g++ \
+    make \
     git \
     pkg-config \
-    default-libmysqlclient-dev
+    default-mysql-client \
+    default-libmysqlclient-dev \
+    libmariadb-dev \
+    mariadb-client \
+    mariadb-server \
+    libmariadb3 \
+    libmariadb-dev \
+    wget \
+    unzip
 
 # Copy development requirements and install them
 COPY requirements/*.txt requirements/
@@ -252,7 +333,6 @@ RUN uv pip install .[postgres]
 RUN python -m compileall /app/superset
 
 USER superset
-
 ######################################################################
 # CI image...
 ######################################################################
