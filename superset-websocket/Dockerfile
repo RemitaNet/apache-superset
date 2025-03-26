@@ -13,10 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 FROM node:16-alpine AS build
-RUN mkdir /home/superset-websocket \
-    && mkdir /home/superset-websocket/node_modules \
-    && mkdir /home/superset-websocket/dist \
-    && chmod -R 1777 /home/superset-websocket
 
 WORKDIR /home/superset-websocket
 
@@ -31,8 +27,9 @@ ENV NODE_ENV=production
 WORKDIR /home/superset-websocket
 
 COPY --from=build /home/superset-websocket/dist ./dist
-COPY ./package*.json ./
-RUN ls
+COPY ./package.json ./
+COPY ./package-lock.json ./
+RUN ls -la && test -f package.json || echo "ERROR: package.json is missing!"
 # Only install production dependencies
 RUN npm ci --omit=dev
 
