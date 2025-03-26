@@ -39,15 +39,15 @@ build_and_push_image() {
 
 # Get timestamp with milliseconds
 DATE_WITH_TIME=$(date "+%Y%m%d.%H%M%S.%3N")
-
-# Build and push the main Superset image
-echo ">>> Building Apache Superset image"
-if build_and_push_image "RemitaDockerfile" "apache-superset"; then
-    echo ">>> First build succeeded. Proceeding to WebSocket build."
-else
-    echo ">>> First build failed. Exiting script."
-    exit 1
-fi
+#
+## Build and push the main Superset image
+#echo ">>> Building Apache Superset image"
+#if build_and_push_image "RemitaDockerfile" "apache-superset"; then
+#    echo ">>> First build succeeded. Proceeding to WebSocket build."
+#else
+#    echo ">>> First build failed. Exiting script."
+#    exit 1
+#fi
 
 # Only proceed to build WebSocket if the first build succeeds
 echo ">>> Building Apache Superset WebSocket image"
