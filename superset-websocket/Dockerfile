@@ -20,7 +20,6 @@ RUN mkdir /home/superset-websocket \
 WORKDIR /home/superset-websocket
 
 COPY . ./
-
 RUN npm ci && \
   npm run build
 
@@ -31,8 +30,8 @@ ENV NODE_ENV=production
 WORKDIR /home/superset-websocket
 
 COPY --from=build /home/superset-websocket/dist ./dist
-COPY package*.json ./
-
+COPY ./package*.json ./
+RUN ls
 # Only install production dependencies
 RUN npm ci --omit=dev
 
