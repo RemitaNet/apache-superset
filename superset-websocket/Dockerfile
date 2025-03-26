@@ -15,7 +15,8 @@
 FROM node:16-alpine AS build
 RUN mkdir /home/superset-websocket \
     && mkdir /home/superset-websocket/node_modules \
-    && mkdir /home/superset-websocket/dist
+    && mkdir /home/superset-websocket/dist \
+    && chmod -R 1777 /home/superset-websocket
 
 WORKDIR /home/superset-websocket
 
