@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 FROM node:16-alpine AS build
+RUN mkdir /home/superset-websocket \
+    && mkdir /home/superset-websocket/node_modules \
+    && mkdir /home/superset-websocket/dist
 
 WORKDIR /home/superset-websocket
 
