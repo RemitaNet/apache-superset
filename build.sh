@@ -39,6 +39,7 @@ build_and_push_image() {
 
 # Get timestamp with milliseconds
 DATE_WITH_TIME=$(date "+%Y%m%d.%H%M%S.%3N")
+DATE_WITH_TIME=20250326.234656.177
 #
 ## Build and push the main Superset image
 #echo ">>> Building Apache Superset image"
