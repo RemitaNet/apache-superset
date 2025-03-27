@@ -229,7 +229,6 @@ export default typedMemo(function DataTable<D extends object>({
     }
   };
 
-
   const handleBulkAction = (actionKey: string) => {
     if (onBulkActionClick && selectedRows) {
       const selectedIds = Array.from(selectedRows);

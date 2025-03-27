@@ -144,12 +144,11 @@ export const ActionCell = ({
     e.preventDefault();
     e.stopPropagation();
     const configExtended = config as any;
-    const value =  String(row[rowId]);
     onActionClick({
       action: 'table-action',
       chartId: chartId,
       key: configExtended?.key,
-      value: value
+      value: row
     });
     setMenuOpen(false);
   };
