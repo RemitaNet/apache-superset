@@ -17,6 +17,7 @@ FROM node:16-alpine AS build
 WORKDIR /home/superset-websocket
 
 COPY . ./
+
 RUN npm ci && \
   npm run build
 
@@ -27,9 +28,8 @@ ENV NODE_ENV=production
 WORKDIR /home/superset-websocket
 
 COPY --from=build /home/superset-websocket/dist ./dist
-COPY ./package.json ./
-COPY ./package-lock.json ./
-RUN ls -la && test -f package.json || echo "ERROR: package.json is missing!"
+COPY package*.json ./
+
 # Only install production dependencies
 RUN npm ci --omit=dev
 
